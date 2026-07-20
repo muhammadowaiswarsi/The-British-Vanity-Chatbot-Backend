@@ -8,5 +8,6 @@ export const EMBEDDING_VECTOR_SIZE = 1536;
 
 export const qdrant = new QdrantClient({
   url: QDRANT_URL,
+  apiKey: process.env.QDRANT_API_KEY,
   checkCompatibility: false,
 });
