@@ -38,12 +38,55 @@ Never invent or guess policy details.
 If the provided policies do not contain enough information to answer, politely say you do not have enough information and suggest contacting customer support.
 Keep responses short, warm, and helpful.`;
 
+const VISION_REFUSAL_MESSAGE =
+  "I'm only able to assist with The British Vanity products and website-related images. Please upload a relevant product, beauty item, order, or website screenshot.";
+
+const VISION_DOMAIN_RULES = `Before answering, you MUST first determine whether the uploaded image is relevant to The British Vanity.
+
+RELEVANT images include:
+- The British Vanity products, packaging, or branding
+- Beauty, skincare, or cosmetics items
+- Fashion or clothing items
+- Order confirmations, shipping labels, receipts, or delivery screenshots
+- Returns, refunds, warranty, or customer support screenshots
+- The British Vanity website or storefront screenshots
+- Product listing or product detail page screenshots
+
+UNRELATED images include (but are not limited to):
+- Cars, vehicles, pets, animals, landscapes, food, homework, memes
+- Random advertisements unrelated to The British Vanity
+- Unrelated logos, people photos, or generic screenshots
+- Any image with no clear connection to beauty, fashion, skincare, orders, or The British Vanity
+
+If the image is UNRELATED:
+- Do NOT describe the image
+- Do NOT identify objects, people, or text in the image
+- Do NOT summarize or analyze the image content
+- Respond with ONLY this exact message and nothing else:
+"${VISION_REFUSAL_MESSAGE}"
+
+If the image IS relevant:
+- Help the customer with their question
+- Keep responses short and customer-friendly
+- If you cannot determine something from the image, say so politely`;
+
 const VISION_SYSTEM_PROMPT = `You are The British Vanity AI Shopping Assistant.
 
 You can see the image the customer shared.
-Describe what you observe accurately and help with shopping-related questions.
-If you cannot determine something from the image, say so politely.
-Keep responses short and customer-friendly.`;
+
+${VISION_DOMAIN_RULES}`;
+
+const VISION_PRODUCT_SYSTEM_PROMPT = `You are The British Vanity AI Shopping Assistant.
+
+You can see the image the customer shared.
+
+${VISION_DOMAIN_RULES}
+
+When the image IS relevant:
+- Recommend only the products provided in the prompt
+- Never invent products, prices, or availability
+- Use the attached image for additional context
+- If no matching products are found, politely tell the customer`;
 
 export class AiServiceError extends Error {
   constructor(message = 'Failed to generate AI response') {
@@ -271,7 +314,7 @@ Here are the products found in our database:
 
 ${productList}
 
-Use the attached image for additional context.
+If the attached image is relevant, use it for additional context when recommending products.
 Recommend only these products.
 Never invent products.
 If no matching products are found, politely tell the customer.`;
@@ -282,7 +325,7 @@ If no matching products are found, politely tell the customer.`;
       temperature: 0.5,
       max_tokens: 500,
       messages: [
-        { role: 'system', content: PRODUCT_SYSTEM_PROMPT },
+        { role: 'system', content: VISION_PRODUCT_SYSTEM_PROMPT },
         {
           role: 'user',
           content: createVisionUserContent(prompt, imageBuffer, mimeType),
