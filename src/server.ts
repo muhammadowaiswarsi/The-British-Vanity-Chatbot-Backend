@@ -9,6 +9,10 @@ const PORT = process.env.PORT || 5001;
 const start = async (): Promise<void> => {
   await connectDB();
 
+  if (!process.env.OPENROUTER_API_KEY) {
+    console.warn('OPENROUTER_API_KEY is missing — /api/chat will return 503 until configured.');
+  }
+
   app.listen(PORT, () => {
     console.log(`Chatbot backend running on port ${PORT} [${process.env.NODE_ENV ?? 'development'}]`);
   });
