@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sendChatMessage } from '../controllers/chat.controller';
+import { getChatHistory, sendChatMessage } from '../controllers/chat.controller';
 import {
   optionalChatImageUpload,
   requiredChatImageUpload,
@@ -7,6 +7,7 @@ import {
 
 const router = Router();
 
+router.get('/history', getChatHistory);
 router.post('/', optionalChatImageUpload, sendChatMessage);
 router.post('/image', requiredChatImageUpload, sendChatMessage);
 

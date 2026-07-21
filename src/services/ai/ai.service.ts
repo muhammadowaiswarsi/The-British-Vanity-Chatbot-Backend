@@ -112,7 +112,22 @@ const createVisionUserContent = (
   },
 ];
 
-export const generateAssistantReply = async (message: string): Promise<string> => {
+type ConversationHistory = OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+
+const buildChatMessages = (
+  systemPrompt: string,
+  history: ConversationHistory,
+  finalUserMessage: OpenAI.Chat.Completions.ChatCompletionMessageParam
+): OpenAI.Chat.Completions.ChatCompletionMessageParam[] => [
+  { role: 'system', content: systemPrompt },
+  ...history.slice(-20),
+  finalUserMessage,
+];
+
+export const generateAssistantReply = async (
+  message: string,
+  history: ConversationHistory = []
+): Promise<string> => {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new AiServiceError('OpenRouter API key is not configured');
   }
@@ -122,10 +137,10 @@ export const generateAssistantReply = async (message: string): Promise<string> =
       model: OPENROUTER_CHAT_MODEL,
       temperature: 0.7,
       max_tokens: 400,
-      messages: [
-        { role: 'system', content: GENERAL_SYSTEM_PROMPT },
-        { role: 'user', content: message },
-      ],
+      messages: buildChatMessages(GENERAL_SYSTEM_PROMPT, history, {
+        role: 'user',
+        content: message,
+      }),
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();
@@ -148,7 +163,8 @@ export const generateAssistantReply = async (message: string): Promise<string> =
 export const generateVisionAssistantReply = async (
   message: string,
   imageBuffer: Buffer,
-  mimeType: string
+  mimeType: string,
+  history: ConversationHistory = []
 ): Promise<string> => {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new AiServiceError('OpenRouter API key is not configured');
@@ -159,13 +175,10 @@ export const generateVisionAssistantReply = async (
       model: OPENROUTER_VISION_MODEL,
       temperature: 0.5,
       max_tokens: 500,
-      messages: [
-        { role: 'system', content: VISION_SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: createVisionUserContent(message, imageBuffer, mimeType),
-        },
-      ],
+      messages: buildChatMessages(VISION_SYSTEM_PROMPT, history, {
+        role: 'user',
+        content: createVisionUserContent(message, imageBuffer, mimeType),
+      }),
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();
@@ -188,7 +201,8 @@ export const generateVisionAssistantReply = async (
 export const generatePolicyAssistantReply = async (
   message: string,
   policyChunks: PolicyChunkPayload[],
-  faqChunks: FaqPayload[]
+  faqChunks: FaqPayload[],
+  history: ConversationHistory = []
 ): Promise<string> => {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new AiServiceError('OpenRouter API key is not configured');
@@ -221,10 +235,10 @@ Instructions:
       model: OPENROUTER_CHAT_MODEL,
       temperature: 0.3,
       max_tokens: 400,
-      messages: [
-        { role: 'system', content: POLICY_SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-      ],
+      messages: buildChatMessages(POLICY_SYSTEM_PROMPT, history, {
+        role: 'user',
+        content: prompt,
+      }),
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();
@@ -246,7 +260,8 @@ Instructions:
 
 export const generateProductAssistantReply = async (
   message: string,
-  products: ChatProduct[]
+  products: ChatProduct[],
+  history: ConversationHistory = []
 ): Promise<string> => {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new AiServiceError('OpenRouter API key is not configured');
@@ -271,10 +286,10 @@ If no matching products are found, politely tell the customer.`;
       model: OPENROUTER_CHAT_MODEL,
       temperature: 0.5,
       max_tokens: 500,
-      messages: [
-        { role: 'system', content: PRODUCT_SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-      ],
+      messages: buildChatMessages(PRODUCT_SYSTEM_PROMPT, history, {
+        role: 'user',
+        content: prompt,
+      }),
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();
@@ -298,7 +313,8 @@ export const generateProductAssistantReplyWithImage = async (
   message: string,
   products: ChatProduct[],
   imageBuffer: Buffer,
-  mimeType: string
+  mimeType: string,
+  history: ConversationHistory = []
 ): Promise<string> => {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new AiServiceError('OpenRouter API key is not configured');
@@ -324,13 +340,10 @@ If no matching products are found, politely tell the customer.`;
       model: OPENROUTER_VISION_MODEL,
       temperature: 0.5,
       max_tokens: 500,
-      messages: [
-        { role: 'system', content: VISION_PRODUCT_SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: createVisionUserContent(prompt, imageBuffer, mimeType),
-        },
-      ],
+      messages: buildChatMessages(VISION_PRODUCT_SYSTEM_PROMPT, history, {
+        role: 'user',
+        content: createVisionUserContent(prompt, imageBuffer, mimeType),
+      }),
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();

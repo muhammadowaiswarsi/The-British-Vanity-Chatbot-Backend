@@ -1,3 +1,4 @@
+import type OpenAI from 'openai';
 import {
   generateAssistantReply,
   generatePolicyAssistantReply,
@@ -5,6 +6,12 @@ import {
   generateProductAssistantReplyWithImage,
   generateVisionAssistantReply,
 } from '../ai/ai.service';
+import {
+  addAssistantMessage,
+  addUserMessage,
+  getRecentMessages,
+  toOpenRouterHistory,
+} from '../conversation.service';
 import {
   hasPolicyFaqContext,
   retrievePolicyFaqContext,
@@ -15,6 +22,8 @@ import {
   searchProductsForChat,
 } from '../products/product.service';
 import type { ChatResponseBody, ChatServiceInput } from '../../types/chat.types';
+
+type ConversationHistory = OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
 const DEFAULT_SUGGESTIONS = [
   'Show New Arrivals',
@@ -43,9 +52,13 @@ const NO_PRODUCTS_REPLY = "Sorry, I couldn't find any matching products.";
 const NO_POLICY_REPLY =
   "I don't have access to that policy information right now. Please contact customer support or check our website.";
 const IMAGE_ONLY_DEFAULT_MESSAGE = 'Please help me with this image.';
+const HISTORY_LIMIT = 20;
 
 const matchesAny = (text: string, keywords: string[]) =>
   keywords.some((keyword) => text.includes(keyword));
+
+const toImageDataUrl = (buffer: Buffer, mimeType: string): string =>
+  `data:${mimeType};base64,${buffer.toString('base64')}`;
 
 const getSuggestions = (
   message: string,
@@ -79,6 +92,7 @@ const getSuggestions = (
 
 const handleProductQuery = async (
   message: string,
+  history: ConversationHistory,
   image?: ChatServiceInput['image']
 ): Promise<ChatResponseBody> => {
   const products = await searchProductsForChat(message);
@@ -97,9 +111,10 @@ const handleProductQuery = async (
         message,
         products,
         image.buffer,
-        image.mimeType
+        image.mimeType,
+        history
       )
-    : await generateProductAssistantReply(message, products);
+    : await generateProductAssistantReply(message, products, history);
 
   return {
     success: true,
@@ -111,9 +126,15 @@ const handleProductQuery = async (
 
 const handleImageQuery = async (
   message: string,
+  history: ConversationHistory,
   image: NonNullable<ChatServiceInput['image']>
 ): Promise<ChatResponseBody> => {
-  const reply = await generateVisionAssistantReply(message, image.buffer, image.mimeType);
+  const reply = await generateVisionAssistantReply(
+    message,
+    image.buffer,
+    image.mimeType,
+    history
+  );
 
   return {
     success: true,
@@ -122,7 +143,10 @@ const handleImageQuery = async (
   };
 };
 
-const handlePolicyQuery = async (message: string): Promise<ChatResponseBody> => {
+const handlePolicyQuery = async (
+  message: string,
+  history: ConversationHistory
+): Promise<ChatResponseBody> => {
   try {
     const context = await retrievePolicyFaqContext(message);
 
@@ -137,7 +161,8 @@ const handlePolicyQuery = async (message: string): Promise<ChatResponseBody> => 
     const reply = await generatePolicyAssistantReply(
       message,
       context.policyChunks,
-      context.faqChunks
+      context.faqChunks,
+      history
     );
 
     return {
@@ -159,32 +184,42 @@ const handlePolicyQuery = async (message: string): Promise<ChatResponseBody> => 
   }
 };
 
-export const getChatReply = async ({ message, image }: ChatServiceInput): Promise<ChatResponseBody> => {
+export const getChatReply = async ({
+  sessionId,
+  message,
+  image,
+}: ChatServiceInput): Promise<ChatResponseBody> => {
   const effectiveMessage = message.trim() || IMAGE_ONLY_DEFAULT_MESSAGE;
   const isProductQuery = isProductRelatedQuery(effectiveMessage);
   const isPolicyQuery = isPolicyRelatedQuery(effectiveMessage);
 
+  const recentMessages = await getRecentMessages(sessionId, HISTORY_LIMIT);
+  const history = toOpenRouterHistory(recentMessages);
+
+  const storedImage = image ? toImageDataUrl(image.buffer, image.mimeType) : undefined;
+  await addUserMessage(sessionId, effectiveMessage, storedImage);
+
+  let response: ChatResponseBody;
+
   if (image && isProductQuery) {
-    return handleProductQuery(effectiveMessage, image);
+    response = await handleProductQuery(effectiveMessage, history, image);
+  } else if (image) {
+    response = await handleImageQuery(effectiveMessage, history, image);
+  } else if (isProductQuery) {
+    response = await handleProductQuery(effectiveMessage, history);
+  } else if (isPolicyQuery) {
+    response = await handlePolicyQuery(effectiveMessage, history);
+  } else {
+    const reply = await generateAssistantReply(effectiveMessage, history);
+
+    response = {
+      success: true,
+      reply,
+      suggestions: getSuggestions(effectiveMessage, false, false),
+    };
   }
 
-  if (image) {
-    return handleImageQuery(effectiveMessage, image);
-  }
+  await addAssistantMessage(sessionId, response.reply);
 
-  if (isProductQuery) {
-    return handleProductQuery(effectiveMessage);
-  }
-
-  if (isPolicyQuery) {
-    return handlePolicyQuery(effectiveMessage);
-  }
-
-  const reply = await generateAssistantReply(effectiveMessage);
-
-  return {
-    success: true,
-    reply,
-    suggestions: getSuggestions(effectiveMessage, false, false),
-  };
+  return response;
 };

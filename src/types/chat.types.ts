@@ -1,4 +1,5 @@
 export interface ChatRequestBody {
+  sessionId: string;
   message: string;
 }
 
@@ -8,6 +9,7 @@ export interface ChatImageInput {
 }
 
 export interface ChatServiceInput {
+  sessionId: string;
   message: string;
   image?: ChatImageInput;
 }
@@ -38,3 +40,14 @@ export interface ChatErrorResponse {
 }
 
 export type ChatResponseBody = ChatSuccessResponse;
+
+export interface ChatHistoryMessageResponse {
+  role: 'user' | 'assistant';
+  content: string;
+  image?: string;
+}
+
+export interface ChatHistorySuccessResponse {
+  success: true;
+  messages: ChatHistoryMessageResponse[];
+}
