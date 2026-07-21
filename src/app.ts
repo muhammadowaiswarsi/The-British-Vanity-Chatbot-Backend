@@ -20,7 +20,7 @@ const parseAllowedOrigins = (): string[] => {
   const defaults = [
     process.env.FRONTEND_URL,
     'http://localhost:3000',
-    'https://the-british-vanity.incitertech.com',
+    'https://the-british-vanity.vercel.app',
     'https://chat-bot-frontend-azure.vercel.app',
   ].filter(Boolean) as string[];
 
