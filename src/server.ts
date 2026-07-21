@@ -7,7 +7,12 @@ import { connectDB } from './config/db';
 const PORT = process.env.PORT || 5001;
 
 const start = async (): Promise<void> => {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (error) {
+    console.error('MongoDB connection error:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
 
   if (!process.env.OPENROUTER_API_KEY) {
     console.warn('OPENROUTER_API_KEY is missing — /api/chat will return 503 until configured.');

@@ -5,8 +5,10 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import 'express-async-errors';
 
+import { ensureDb } from './middleware/ensureDb.middleware';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import { connectDB } from './config/db';
 import chatRoutes from './routes/chat.routes';
 import policyIndexRoutes from './routes/policy-index.routes';
 import qdrantRoutes from './routes/qdrant.routes';
@@ -52,6 +54,8 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+app.use('/api', ensureDb);
+
 app.use('/api/chat', chatRoutes);
 app.use('/api/qdrant', qdrantRoutes);
 app.use('/api/index', policyIndexRoutes);
@@ -64,7 +68,13 @@ app.get('/health', (_req, res) => {
   });
 });
 
-app.get('/health/config', (_req, res) => {
+app.get('/health/config', async (_req, res) => {
+  try {
+    await connectDB();
+  } catch {
+    // Report connection status below even if connect fails.
+  }
+
   res.json({
     status: 'ok',
     configured: {
