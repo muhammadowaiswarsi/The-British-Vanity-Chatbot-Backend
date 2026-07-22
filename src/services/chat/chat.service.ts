@@ -22,6 +22,8 @@ import {
   searchProductsForChat,
 } from '../products/product.service';
 import type { ChatResponseBody, ChatServiceInput } from '../../types/chat.types';
+import { PROMPT_INJECTION_REFUSAL } from '../../constants/chat.constants';
+import { isPromptInjectionAttempt } from '../../utils/promptGuard';
 
 type ConversationHistory = OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
@@ -198,6 +200,16 @@ export const getChatReply = async ({
 
   const storedImage = image ? toImageDataUrl(image.buffer, image.mimeType) : undefined;
   await addUserMessage(sessionId, effectiveMessage, storedImage);
+
+  if (isPromptInjectionAttempt(effectiveMessage)) {
+    await addAssistantMessage(sessionId, PROMPT_INJECTION_REFUSAL);
+
+    return {
+      success: true,
+      reply: PROMPT_INJECTION_REFUSAL,
+      suggestions: getSuggestions(effectiveMessage, false, false),
+    };
+  }
 
   let response: ChatResponseBody;
 

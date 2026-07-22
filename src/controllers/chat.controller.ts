@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { CHAT_MAX_MESSAGE_LENGTH } from '../constants/chat.constants';
 import { getChatReply } from '../services/chat/chat.service';
 import { getConversationHistory } from '../services/conversation.service';
 import { AiServiceError } from '../services/ai/ai.service';
@@ -77,10 +78,10 @@ export const sendChatMessage = async (req: Request, res: Response): Promise<void
     return;
   }
 
-  if (message.length > 1000) {
+  if (message.length > CHAT_MAX_MESSAGE_LENGTH) {
     res.status(400).json({
       success: false,
-      message: 'Message must be 1000 characters or fewer.',
+      message: `Message must be ${CHAT_MAX_MESSAGE_LENGTH} characters or fewer.`,
     });
     return;
   }
