@@ -253,20 +253,52 @@ const searchProductsFromMongoDB = async (message: string): Promise<ChatProduct[]
   return filteredResults.map((product) => mapToChatProduct(product as Record<string, unknown>));
 };
 
+const hydrateProductsFromMongo = async (mongoIds: string[]): Promise<ChatProduct[]> => {
+  if (!mongoIds.length) {
+    return [];
+  }
+
+  const products = await Product.find({ _id: { $in: mongoIds }, isActive: true })
+    .populate('category', 'name slug')
+    .populate('brand', 'name slug')
+    .lean();
+
+  const productsById = new Map(
+    products.map((product) => [String(product._id), product as Record<string, unknown>])
+  );
+
+  return mongoIds
+    .map((id) => productsById.get(id))
+    .filter((product): product is Record<string, unknown> => Boolean(product))
+    .map((product) => mapToChatProduct(product));
+};
+
 export const searchProductsForChat = async (message: string): Promise<ChatProduct[]> => {
   try {
     const qdrantResults = await searchProducts(message);
     const points = qdrantResults.points ?? [];
 
     if (points.length > 0) {
-      const products = points
+      const mongoIds = points
+        .map((point) => ((point.payload ?? {}) as QdrantProductPayload).mongoId)
+        .filter((id): id is string => Boolean(id));
+
+      if (mongoIds.length > 0) {
+        const hydratedProducts = await hydrateProductsFromMongo(mongoIds);
+
+        if (hydratedProducts.length > 0) {
+          return hydratedProducts.slice(0, PRODUCT_RESULT_LIMIT);
+        }
+      }
+
+      const payloadProducts = points
         .map((point) =>
           mapQdrantPayloadToChatProduct((point.payload ?? {}) as QdrantProductPayload)
         )
         .filter((product): product is ChatProduct => product !== null);
 
-      if (products.length > 0) {
-        return products.slice(0, PRODUCT_RESULT_LIMIT);
+      if (payloadProducts.length > 0) {
+        return payloadProducts.slice(0, PRODUCT_RESULT_LIMIT);
       }
     }
   } catch (error) {

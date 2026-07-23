@@ -22,6 +22,7 @@ import {
   searchProductsForChat,
 } from '../products/product.service';
 import type { ChatResponseBody, ChatServiceInput } from '../../types/chat.types';
+import { toProductCards } from '../../types/chat.types';
 import { PROMPT_INJECTION_REFUSAL } from '../../constants/chat.constants';
 import { isPromptInjectionAttempt } from '../../utils/promptGuard';
 
@@ -92,6 +93,8 @@ const getSuggestions = (
   return DEFAULT_SUGGESTIONS;
 };
 
+const EMPTY_PRODUCTS: ChatResponseBody['products'] = [];
+
 const handleProductQuery = async (
   message: string,
   history: ConversationHistory,
@@ -104,7 +107,7 @@ const handleProductQuery = async (
       success: true,
       reply: NO_PRODUCTS_REPLY,
       suggestions: PRODUCT_SUGGESTIONS,
-      products: [],
+      products: EMPTY_PRODUCTS,
     };
   }
 
@@ -122,7 +125,7 @@ const handleProductQuery = async (
     success: true,
     reply,
     suggestions: PRODUCT_SUGGESTIONS,
-    products,
+    products: toProductCards(products),
   };
 };
 
@@ -142,6 +145,7 @@ const handleImageQuery = async (
     success: true,
     reply,
     suggestions: getSuggestions(message, false, false),
+    products: EMPTY_PRODUCTS,
   };
 };
 
@@ -157,6 +161,7 @@ const handlePolicyQuery = async (
         success: true,
         reply: NO_POLICY_REPLY,
         suggestions: POLICY_SUGGESTIONS,
+        products: EMPTY_PRODUCTS,
       };
     }
 
@@ -171,6 +176,7 @@ const handlePolicyQuery = async (
       success: true,
       reply,
       suggestions: POLICY_SUGGESTIONS,
+      products: EMPTY_PRODUCTS,
     };
   } catch (error) {
     console.error(
@@ -182,6 +188,7 @@ const handlePolicyQuery = async (
       success: true,
       reply: NO_POLICY_REPLY,
       suggestions: POLICY_SUGGESTIONS,
+      products: EMPTY_PRODUCTS,
     };
   }
 };
@@ -208,6 +215,7 @@ export const getChatReply = async ({
       success: true,
       reply: PROMPT_INJECTION_REFUSAL,
       suggestions: getSuggestions(effectiveMessage, false, false),
+      products: EMPTY_PRODUCTS,
     };
   }
 
@@ -228,6 +236,7 @@ export const getChatReply = async ({
       success: true,
       reply,
       suggestions: getSuggestions(effectiveMessage, false, false),
+      products: EMPTY_PRODUCTS,
     };
   }
 

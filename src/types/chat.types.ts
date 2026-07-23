@@ -27,11 +27,35 @@ export interface ChatProduct {
   inStock: boolean;
 }
 
+/** Structured product data for frontend product cards (from MongoDB, not LLM). */
+export interface ProductCard {
+  id: string;
+  title: string;
+  slug: string;
+  price: number;
+  brand: string;
+  image: string;
+  category: string;
+  inStock: boolean;
+}
+
+export const toProductCards = (products: ChatProduct[]): ProductCard[] =>
+  products.map((product) => ({
+    id: product.id,
+    title: product.name,
+    slug: product.slug,
+    price: product.price,
+    brand: product.brand,
+    image: product.image,
+    category: product.category,
+    inStock: product.inStock,
+  }));
+
 export interface ChatSuccessResponse {
   success: true;
   reply: string;
   suggestions: string[];
-  products?: ChatProduct[];
+  products: ProductCard[];
 }
 
 export interface ChatErrorResponse {
